@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { logger } from "@/lib/logger";
 
 export type LoginResult = { error: string } | undefined;
 
@@ -17,6 +18,7 @@ export async function login(_prevState: LoginResult, formData: FormData): Promis
 
   const admin = await prisma.adminUser.findUnique({ where: { email } });
   if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
+    logger.warn({ email }, "Admin login failed");
     return { error: "Credenciais inválidas." };
   }
 
@@ -25,11 +27,13 @@ export async function login(_prevState: LoginResult, formData: FormData): Promis
   session.adminEmail = admin.email;
   await session.save();
 
+  logger.info({ adminId: admin.id, email: admin.email }, "Admin login succeeded");
   redirect("/admin");
 }
 
 export async function logout() {
   const session = await getSession();
+  logger.info({ adminId: session.adminId }, "Admin logout");
   session.destroy();
   redirect("/admin/login");
 }

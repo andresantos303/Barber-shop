@@ -6,6 +6,7 @@ import { ANY_BARBER, findBarberForSlot, getAvailableSlots, zonedDateTimeToUtc } 
 import { BUFFER_MIN } from "@/lib/constants";
 import { sendBookingConfirmationEmails } from "@/lib/email";
 import { contactInfoSchema } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 const bookingSchema = contactInfoSchema.extend({
   barberId: z.string().min(1),
@@ -75,13 +76,16 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
       });
     });
 
+    logger.info({ bookingId: booking.id, barberId, serviceId, startAt }, "Booking created");
+
     sendBookingConfirmationEmails(booking.id).catch((err) => {
-      console.error("Failed to send booking confirmation emails", err);
+      logger.error({ err, bookingId: booking.id }, "Failed to send booking confirmation emails");
     });
 
     return { success: true, bookingId: booking.id };
   } catch (error) {
     if (error instanceof SlotTakenError) {
+      logger.warn({ barberId, serviceId, date, time }, "Booking rejected: slot taken between revalidation and insert");
       return { success: false, error: "Este horário já não está disponível. Escolha outro." };
     }
     throw error;
@@ -92,9 +96,13 @@ class SlotTakenError extends Error {}
 
 export async function cancelBookingByToken(cancelToken: string): Promise<{ success: boolean; error?: string }> {
   const booking = await prisma.booking.findUnique({ where: { cancelToken } });
-  if (!booking) return { success: false, error: "Marcação não encontrada." };
+  if (!booking) {
+    logger.warn({ cancelToken }, "Cancel-by-token: booking not found");
+    return { success: false, error: "Marcação não encontrada." };
+  }
   if (booking.status === "CANCELLED") return { success: true };
 
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
+  logger.info({ bookingId: booking.id }, "Booking cancelled by client via token");
   return { success: true };
 }

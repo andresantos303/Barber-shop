@@ -13,6 +13,9 @@ Redesign of the [André Cabeleireiro](https://andrecabeleireiro.com) barbershop 
 - **Products showcase** (`/produtos`) — a proper catalog with photos, prices, and descriptions (replacing the original site's unlabeled thumbnails), plus a homepage teaser.
 - **Content pages** — Serviços, Equipa, Sobre Nós, Contacto (with embedded map), Livro de Reclamações (PT legal requirement), Política de Privacidade.
 - **Mobile-first** — sticky "Agendar Agora" CTA bar on mobile, touch-friendly time-slot grid, responsive down to 320px, Lighthouse scores in the 90s/100 across Performance, Accessibility, Best Practices, and SEO.
+- **Structured logging** — every API route, booking creation/cancellation, email send, and admin login goes through a [Pino](https://getpino.io) logger (pretty-printed in dev, JSON in production) instead of `console.*`.
+- **API documentation** — the read-only availability endpoints are documented as an OpenAPI 3.0 spec and browsable via a Swagger UI page at `/admin/api-docs` (admin-only).
+- **Unit tests** — [Vitest](https://vitest.dev) covers the booking-availability algorithm (working hours, the 10-minute buffer, blocked dates, lead time) and the API route handlers.
 
 ## Tech Stack
 
@@ -25,6 +28,9 @@ Redesign of the [André Cabeleireiro](https://andrecabeleireiro.com) barbershop 
 | Email | [Resend](https://resend.com) + [React Email](https://react.email) |
 | Forms/validation | react-hook-form + zod |
 | Date/time | date-fns / date-fns-tz (Europe/Lisbon, DST-aware) + react-day-picker |
+| Logging | [Pino](https://getpino.io) |
+| API docs | [next-swagger-doc](https://github.com/jellydn/next-swagger-doc) (OpenAPI 3.0) + [swagger-ui-react](https://github.com/swagger-api/swagger-ui) |
+| Testing | [Vitest](https://vitest.dev) |
 
 ## Local Setup
 
@@ -81,8 +87,31 @@ Open [http://localhost:3000](http://localhost:3000) for the public site, and [ht
 npm run build      # production build
 npm run start       # run the production build locally
 npm run lint        # eslint
+npm run test         # run the unit test suite once
+npm run test:watch   # run the unit test suite in watch mode
 npx prisma studio    # browse/edit the database visually
 ```
+
+## Testing
+
+Unit tests live alongside the code they cover (`*.test.ts`) and run on [Vitest](https://vitest.dev):
+
+- `src/lib/availability.test.ts` — the slot-computation algorithm: empty working hours, the mandatory 10-minute buffer around existing bookings, partial/whole-day blocked dates, duration overflow at the edge of a working window, same-day lead time, and the "any barber" fallback.
+- `src/app/api/availability/route.test.ts` and `src/app/api/availability/closed-dates/route.test.ts` — request validation and correct delegation to the availability lib.
+
+```bash
+npm run test
+```
+
+## Logging
+
+`src/lib/logger.ts` exports a [Pino](https://getpino.io) logger used in place of `console.*` across the API routes, booking creation/cancellation, email sending, and admin login. Logs are pretty-printed and colorized in development (`NODE_ENV=development`) and plain JSON everywhere else, so they're ready to pipe into a log aggregator in production. Set `LOG_LEVEL` (e.g. `debug`, `info`, `warn`) to override the default.
+
+## API Documentation
+
+The two read-only availability endpoints (`/api/availability` and `/api/availability/closed-dates`) are documented as an OpenAPI 3.0 spec generated from `@swagger` JSDoc comments above each route handler (see `src/lib/swagger.ts`). Browse them via Swagger UI at `/admin/api-docs` (requires an admin login — same auth as the rest of the dashboard). The raw spec is served at `/api/docs/spec`.
+
+Booking creation/cancellation and all admin CRUD operations go through Next.js Server Actions rather than REST routes, so they aren't part of this spec.
 
 ## Project Structure
 
@@ -94,10 +123,13 @@ src/app/admin/                 Admin login + protected dashboard (route group)
 src/app/api/availability/       Slot/closed-date lookup endpoints used by the booking UI
 src/actions/                   Server actions (booking creation, admin CRUD, auth)
 src/lib/availability.ts          Core slot-computation algorithm (timezone + buffer logic)
+src/lib/availability.test.ts       Unit tests for the slot-computation algorithm
 src/lib/session.ts               Admin auth (iron-session) + requireAdmin() guard
 src/lib/email.ts                  Resend integration for booking confirmation emails
+src/lib/logger.ts                  Pino structured logger
+src/lib/swagger.ts                 OpenAPI spec generation (next-swagger-doc)
 src/components/booking/            Multi-step booking flow UI
-src/components/admin/              Admin CRUD forms
+src/components/admin/              Admin CRUD forms (+ Swagger UI client wrapper)
 src/emails/                        React Email templates
 src/proxy.ts                       Route protection for /admin/** (Next.js 16's renamed "middleware")
 ```

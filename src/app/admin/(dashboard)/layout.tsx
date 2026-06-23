@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Scissors, LayoutDashboard, CalendarDays, Users, Sparkles, ShoppingBag, LogOut } from "lucide-react";
+import { Scissors, LayoutDashboard, CalendarDays, Users, Sparkles, ShoppingBag, LogOut, FileCode } from "lucide-react";
 import { logout } from "@/actions/auth";
 import { requireAdmin } from "@/lib/session";
 
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/barbers", label: "Barbeiros", icon: Users },
   { href: "/admin/services", label: "Serviços", icon: Sparkles },
   { href: "/admin/products", label: "Produtos", icon: ShoppingBag },
+  { href: "/admin/api-docs", label: "API Docs", icon: FileCode },
 ];
 
 export default async function AdminDashboardLayout({ children }: { children: React.ReactNode }) {

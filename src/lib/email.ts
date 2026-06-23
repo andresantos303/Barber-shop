@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { BUSINESS_TZ } from "@/lib/constants";
 import BookingConfirmationClientEmail from "@/emails/booking-confirmation-client";
 import BookingNotificationShopEmail from "@/emails/booking-notification-shop";
+import { logger } from "@/lib/logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -63,13 +64,14 @@ export async function sendBookingConfirmationEmails(bookingId: string): Promise<
       where: { id: booking.id },
       data: { confirmationEmailSentAt: new Date() },
     });
+    logger.info({ bookingId }, "Booking confirmation email sent");
   }
 
   for (const result of results) {
     if (result.status === "rejected") {
-      console.error("Failed to send booking email:", result.reason);
+      logger.error({ bookingId, err: result.reason }, "Failed to send booking email");
     } else if (result.value?.error) {
-      console.error("Resend API error:", result.value.error);
+      logger.error({ bookingId, err: result.value.error }, "Resend API error");
     }
   }
 }
