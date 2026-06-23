@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model Barber {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  photoUrl  String?
+  bio       String?
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services      BarberService[]
+  workingHours  WorkingHours[]
+  blockedSlots  BlockedSlot[]
+  bookings      Booking[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  category    String // e.g. "Corte", "Barba", "Não Categorizado" — free text, managed in admin
+  description String?
+  durationMin Int
+  priceCents  Int
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  barbers  BarberService[]
+  bookings Booking[]
+}
+
+model BarberService {
+  barberId  String
+  serviceId String
+  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, serviceId])
+}
+
+// startTime/endTime stored as "HH:mm" Lisbon-local wall-clock strings, not UTC,
+// so a 09:00 shift stays 09:00 across DST transitions; converted to UTC only at slot-generation time.
+model WorkingHours {
+  id        String  @id @default(cuid())
+  barberId  String
+  dayOfWeek Int // 0 (Sunday) - 6 (Saturday)
+  startTime String
+  endTime   String
+  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([barberId, dayOfWeek])
+}
+
+// barberId null = shop-wide closure (e.g. public holiday). startTime/endTime null = whole day blocked.
+model BlockedSlot {
+  id        String   @id @default(cuid())
+  barberId  String?
+  date      DateTime @db.Date
+  startTime String?
+  endTime   String?
+  reason    String?
+  createdAt DateTime @default(now())
+  barber    Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([barberId, date])
+}
+
+model Booking {
+  id                     String        @id @default(cuid())
+  barberId               String
+  serviceId              String
+  startAt                DateTime // UTC instant — single source of truth for overlap checks
+  endAt                  DateTime // UTC instant
+  customerName           String
+  customerPhone          String
+  customerEmail          String
+  notes                  String?
+  status                 BookingStatus @default(CONFIRMED)
+  cancelToken            String        @unique @default(cuid())
+  confirmationEmailSentAt DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  barber  Barber  @relation(fields: [barberId], references: [id], onDelete: Restrict)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([barberId, startAt])
+  @@index([status])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  priceCents  Int
+  imageUrl    String?
+  brand       String?
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+}

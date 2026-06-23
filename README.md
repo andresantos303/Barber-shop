@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# André Cabeleireiro
 
-## Getting Started
+Redesign of the [André Cabeleireiro](https://andrecabeleireiro.com) barbershop website (Seixezelo, Portugal) — a full-stack, mobile-first Next.js app with a dark/premium design, an online booking system, and an admin panel for managing barbers, services, products, and bookings.
 
-First, run the development server:
+## Features
+
+- **Online booking** (`/agendar`) — a 5-step flow: service → barber (or "any available") → date → time → contact details. Available time slots are computed live from each barber's working hours, existing bookings, and blocked dates, with a mandatory 10-minute buffer enforced between consecutive appointments.
+- **Booking confirmation emails** — sent via [Resend](https://resend.com) on successful booking, with a one-click cancellation link. Failed sends are logged without blocking the booking, and can be manually resent from the admin panel.
+- **Admin panel** (`/admin`) — password-protected dashboard to:
+  - View, complete, mark no-show, or cancel bookings
+  - Manage each barber's weekly working hours and blocked dates (vacations, holidays)
+  - CRUD services (name, category, duration, price) and products (name, brand, price, image, description)
+- **Products showcase** (`/produtos`) — a proper catalog with photos, prices, and descriptions (replacing the original site's unlabeled thumbnails), plus a homepage teaser.
+- **Content pages** — Serviços, Equipa, Sobre Nós, Contacto (with embedded map), Livro de Reclamações (PT legal requirement), Política de Privacidade.
+- **Mobile-first** — sticky "Agendar Agora" CTA bar on mobile, touch-friendly time-slot grid, responsive down to 320px, Lighthouse scores in the 90s/100 across Performance, Accessibility, Best Practices, and SEO.
+
+## Tech Stack
+
+| Concern | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router) + React 19 + TypeScript |
+| Database | PostgreSQL via [Prisma](https://www.prisma.io) (driver adapter: `@prisma/adapter-pg`) |
+| Styling | Tailwind CSS v4 + [shadcn/ui](https://ui.shadcn.com) (Base UI primitives) |
+| Auth | Custom session cookies via [iron-session](https://github.com/vvo/iron-session) + bcrypt (admin panel only) |
+| Email | [Resend](https://resend.com) + [React Email](https://react.email) |
+| Forms/validation | react-hook-form + zod |
+| Date/time | date-fns / date-fns-tz (Europe/Lisbon, DST-aware) + react-day-picker |
+
+## Local Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment variables
+
+Copy the variables below into a `.env` file at the project root:
+
+```bash
+DATABASE_URL=               # PostgreSQL connection string
+SESSION_SECRET=             # random string, e.g. `openssl rand -hex 32`
+ADMIN_SEED_EMAIL=           # email for the seeded admin login
+ADMIN_SEED_PASSWORD=        # password for the seeded admin login
+
+RESEND_API_KEY=             # from resend.com (optional — booking still works without it, emails are just logged as failed)
+EMAIL_FROM=                 # e.g. "Bshop <onboarding@resend.dev>" until a custom domain is verified
+SHOP_NOTIFICATION_EMAIL=    # where internal "new booking" notifications are sent
+NEXT_PUBLIC_SITE_URL=       # e.g. http://localhost:3000 — used to build cancellation links in emails
+```
+
+If you don't have a Postgres instance handy, Prisma can spin up a free temporary one:
+
+```bash
+npx create-db create --ttl 24h --env .env
+```
+
+(This gives you a `CLAIM_URL` you can visit to keep the database permanently — otherwise it expires.)
+
+### 3. Run database migrations and seed data
+
+```bash
+npx prisma migrate dev
+npx prisma db seed
+```
+
+This seeds the 4 barbers, the full 10-service catalog, 4 placeholder products, default Mon–Sat 09:00–19:00 working hours, and one admin user (`ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`).
+
+### 4. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) for the public site, and [http://localhost:3000/admin/login](http://localhost:3000/admin/login) for the admin panel.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Other useful commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build      # production build
+npm run start       # run the production build locally
+npm run lint        # eslint
+npx prisma studio    # browse/edit the database visually
+```
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+prisma/schema.prisma        Data model (Barber, Service, WorkingHours, BlockedSlot, Booking, Product, AdminUser)
+prisma/seed.ts               Seed script
+src/app/(site)/               Public pages (home, serviços, equipa, produtos, contacto, agendar, ...)
+src/app/admin/                 Admin login + protected dashboard (route group)
+src/app/api/availability/       Slot/closed-date lookup endpoints used by the booking UI
+src/actions/                   Server actions (booking creation, admin CRUD, auth)
+src/lib/availability.ts          Core slot-computation algorithm (timezone + buffer logic)
+src/lib/session.ts               Admin auth (iron-session) + requireAdmin() guard
+src/lib/email.ts                  Resend integration for booking confirmation emails
+src/components/booking/            Multi-step booking flow UI
+src/components/admin/              Admin CRUD forms
+src/emails/                        React Email templates
+src/proxy.ts                       Route protection for /admin/** (Next.js 16's renamed "middleware")
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Admin routes are protected twice: an optimistic cookie check in `src/proxy.ts`, and an authoritative `requireAdmin()` check in the admin layout and every admin server action — per [Next.js's own guidance](https://nextjs.org/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) that Proxy should not be the sole line of defense.
+- Without a verified sending domain, Resend's sandbox only delivers to the email address that created the Resend account. Verify a domain at [resend.com/domains](https://resend.com/domains) before launch so confirmation emails reach real customers.
