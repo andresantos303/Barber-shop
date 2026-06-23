@@ -11,6 +11,14 @@ export const MIN_LEAD_TIME_MIN = 30;
 /** Sentinel barberId meaning "any available barber" — safe to import from client components. */
 export const ANY_BARBER = "any";
 
+/**
+ * Priority order (by Barber.slug) for auto-assigning a specific barber when the client books
+ * "any available barber" — the first barber in this list who still has the slot free wins.
+ * Independent of Barber.order, which only controls display order (team page, admin list, the
+ * booking flow's barber-selection step).
+ */
+export const ANY_BARBER_PRIORITY = ["pedro-castro", "ruben-gomes", "diogo-pimentel", "andre-coelho"];
+
 export const CONTACT = {
   address: "Rua da Igreja 31, 4415-937 Seixezelo",
   phone: "22 114 2708",

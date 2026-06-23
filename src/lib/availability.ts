@@ -1,6 +1,6 @@
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
-import { ANY_BARBER, BUFFER_MIN, BUSINESS_TZ, MIN_LEAD_TIME_MIN } from "@/lib/constants";
+import { ANY_BARBER, ANY_BARBER_PRIORITY, BUFFER_MIN, BUSINESS_TZ, MIN_LEAD_TIME_MIN } from "@/lib/constants";
 
 export { ANY_BARBER };
 
@@ -125,7 +125,7 @@ export async function getAvailableSlots({
   return Array.from(new Set(slots)).sort();
 }
 
-/** Union of available slots across every active barber who performs this service, ordered by barber priority. */
+/** Union of available slots across every active barber who performs this service, sorted by time. */
 export async function getAvailableSlotsAnyBarber({
   serviceId,
   date,
@@ -237,7 +237,7 @@ export async function getClosedDates({
   return closedDates;
 }
 
-/** Finds the first (by barber priority order) active barber who still has this exact slot free. */
+/** Finds the first (by ANY_BARBER_PRIORITY) active barber who still has this exact slot free. */
 export async function findBarberForSlot({
   serviceId,
   date,
@@ -246,11 +246,16 @@ export async function findBarberForSlot({
 }: Omit<GetAvailableSlotsParams, "barberId"> & { time: string }): Promise<string | null> {
   const barbers = await prisma.barber.findMany({
     where: { active: true, services: { some: { serviceId } } },
-    orderBy: { order: "asc" },
-    select: { id: true },
+    select: { id: true, slug: true },
   });
 
-  for (const barber of barbers) {
+  const priorityIndex = (slug: string) => {
+    const index = ANY_BARBER_PRIORITY.indexOf(slug);
+    return index === -1 ? ANY_BARBER_PRIORITY.length : index;
+  };
+  const sortedBarbers = [...barbers].sort((a, b) => priorityIndex(a.slug) - priorityIndex(b.slug));
+
+  for (const barber of sortedBarbers) {
     const slots = await getAvailableSlots({ barberId: barber.id, serviceId, date, now });
     if (slots.includes(time)) return barber.id;
   }

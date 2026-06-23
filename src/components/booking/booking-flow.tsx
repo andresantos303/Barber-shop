@@ -74,6 +74,10 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
   const [loadingClosedDates, setLoadingClosedDates] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // When barberId is ANY_BARBER, this holds the specific barber auto-assigned for the chosen
+  // slot (resolved as soon as a time is picked, so the contact step can show a real name).
+  const [resolvedBarberId, setResolvedBarberId] = useState<string | null>(null);
+  const [resolvingBarber, setResolvingBarber] = useState(false);
 
   const service = useMemo(() => services.find((s) => s.id === serviceId) ?? null, [services, serviceId]);
   const eligibleBarbers = useMemo(
@@ -127,6 +131,24 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
       .finally(() => setLoadingSlots(false));
   }
 
+  async function selectTime(slot: string) {
+    setTime(slot);
+
+    if (barberId === ANY_BARBER && serviceId && date) {
+      setResolvingBarber(true);
+      try {
+        const params = new URLSearchParams({ serviceId, date: formatDateKey(date), time: slot });
+        const res = await fetch(`/api/availability/resolve-barber?${params}`);
+        const data = await res.json();
+        setResolvedBarberId(data.barberId ?? null);
+      } finally {
+        setResolvingBarber(false);
+      }
+    }
+
+    setStep(5);
+  }
+
   const {
     register,
     handleSubmit,
@@ -139,7 +161,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
     setSubmitError(null);
     const result = await createBooking({
       serviceId,
-      barberId,
+      barberId: barberId === ANY_BARBER ? resolvedBarberId ?? ANY_BARBER : barberId,
       date: formatDateKey(date),
       time,
       ...contact,
@@ -149,6 +171,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
     if (!result.success) {
       setSubmitError(result.error);
       if (result.error.includes("disponível")) {
+        setResolvedBarberId(null);
         setStep(4);
         fetchSlots(date);
       }
@@ -238,6 +261,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
                 onClick={() => {
                   setBarberId(ANY_BARBER);
                   setDate(undefined);
+                  setResolvedBarberId(null);
                   setStep(3);
                 }}
                 className={cn(
@@ -255,6 +279,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
                   onClick={() => {
                     setBarberId(barber.id);
                     setDate(undefined);
+                    setResolvedBarberId(null);
                     setStep(3);
                   }}
                   className={cn(
@@ -282,6 +307,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
                   if (!selected) return;
                   setDate(selected);
                   setTime(null);
+                  setResolvedBarberId(null);
                   fetchSlots(selected);
                   setStep(4);
                 }}
@@ -296,17 +322,17 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
         {step === 4 && (
           <div>
             <BackButton onClick={() => setStep(3)} />
-            {loadingSlots && (
+            {(loadingSlots || resolvingBarber) && (
               <div className="mt-6 flex justify-center">
                 <Loader2 className="size-5 animate-spin text-primary" />
               </div>
             )}
-            {!loadingSlots && slots && slots.length === 0 && (
+            {!loadingSlots && !resolvingBarber && slots && slots.length === 0 && (
               <p className="mt-6 text-center text-sm text-muted-foreground">
                 Sem horários disponíveis neste dia. Escolha outra data.
               </p>
             )}
-            {!loadingSlots && slots && slots.length > 0 && (
+            {!loadingSlots && !resolvingBarber && slots && slots.length > 0 && (
               <div className="mt-6 space-y-6">
                 {groupSlots(slots).map((group) => (
                   <div key={group.label}>
@@ -316,10 +342,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
                         <button
                           key={slot}
                           type="button"
-                          onClick={() => {
-                            setTime(slot);
-                            setStep(5);
-                          }}
+                          onClick={() => selectTime(slot)}
                           className={cn(
                             "h-11 rounded-md border text-sm font-medium transition-colors hover:border-primary",
                             time === slot ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground"
@@ -347,7 +370,7 @@ export function BookingFlow({ services, barbers }: { services: ServiceOption[]; 
               </p>
               <p className="text-muted-foreground">
                 {barberId === ANY_BARBER
-                  ? "Qualquer barbeiro disponível"
+                  ? eligibleBarbers.find((b) => b.id === resolvedBarberId)?.name ?? "Barbeiro a confirmar"
                   : eligibleBarbers.find((b) => b.id === barberId)?.name}
               </p>
             </div>

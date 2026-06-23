@@ -133,8 +133,11 @@ describe("getAvailableSlots", () => {
 });
 
 describe("findBarberForSlot", () => {
-  it("falls through to the next barber (by priority order) when an earlier one has no working hours", async () => {
-    mockPrisma.barber.findMany.mockResolvedValue([{ id: "b1" }, { id: "b2" }] as never);
+  it("falls through to the next barber when an earlier one has no working hours", async () => {
+    mockPrisma.barber.findMany.mockResolvedValue([
+      { id: "b1", slug: "b1-slug" },
+      { id: "b2", slug: "b2-slug" },
+    ] as never);
     mockPrisma.service.findUnique.mockResolvedValue({ id: "svc1", durationMin: 15 } as never);
     mockPrisma.booking.findMany.mockResolvedValue([] as never);
     mockPrisma.blockedSlot.findMany.mockResolvedValue([] as never);
@@ -149,12 +152,52 @@ describe("findBarberForSlot", () => {
   });
 
   it("returns null when no eligible barber has the requested time free", async () => {
-    mockPrisma.barber.findMany.mockResolvedValue([{ id: "b1" }] as never);
+    mockPrisma.barber.findMany.mockResolvedValue([{ id: "b1", slug: "b1-slug" }] as never);
     mockBasics({ workingHours: [] });
 
     const barberId = await findBarberForSlot({ serviceId: "svc1", date: DATE, time: "09:00", now: PAST_NOW });
 
     expect(barberId).toBeNull();
+  });
+
+  it("prefers Pedro Castro over Ruben Gomes, Diogo Pimentel, and André Coelho when several are free", async () => {
+    // Deliberately scrambled order to prove the priority sort — not just DB/array order — decides.
+    mockPrisma.barber.findMany.mockResolvedValue([
+      { id: "andre", slug: "andre-coelho" },
+      { id: "diogo", slug: "diogo-pimentel" },
+      { id: "pedro", slug: "pedro-castro" },
+      { id: "ruben", slug: "ruben-gomes" },
+    ] as never);
+    mockPrisma.service.findUnique.mockResolvedValue({ id: "svc1", durationMin: 15 } as never);
+    mockPrisma.booking.findMany.mockResolvedValue([] as never);
+    mockPrisma.blockedSlot.findMany.mockResolvedValue([] as never);
+    mockPrisma.workingHours.findMany.mockResolvedValue([{ startTime: "09:00", endTime: "10:00" }] as never);
+
+    const barberId = await findBarberForSlot({ serviceId: "svc1", date: DATE, time: "09:00", now: PAST_NOW });
+
+    expect(barberId).toBe("pedro");
+  });
+
+  it("falls to the next priority barber (Ruben Gomes) when Pedro Castro is already booked", async () => {
+    mockPrisma.barber.findMany.mockResolvedValue([
+      { id: "pedro", slug: "pedro-castro" },
+      { id: "ruben", slug: "ruben-gomes" },
+    ] as never);
+    mockPrisma.service.findUnique.mockResolvedValue({ id: "svc1", durationMin: 15 } as never);
+    mockPrisma.blockedSlot.findMany.mockResolvedValue([] as never);
+    mockPrisma.workingHours.findMany.mockResolvedValue([{ startTime: "09:00", endTime: "10:00" }] as never);
+    mockPrisma.booking.findMany.mockImplementation((args) => {
+      const barberId = (args as { where: { barberId: string } } | undefined)?.where.barberId;
+      return Promise.resolve(
+        barberId === "pedro"
+          ? [{ startAt: zonedDateTimeToUtc(DATE, "09:00"), endAt: zonedDateTimeToUtc(DATE, "09:15") }]
+          : []
+      ) as never;
+    });
+
+    const barberId = await findBarberForSlot({ serviceId: "svc1", date: DATE, time: "09:00", now: PAST_NOW });
+
+    expect(barberId).toBe("ruben");
   });
 });
 
