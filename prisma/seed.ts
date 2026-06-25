@@ -8,6 +8,12 @@ const BARBERS = [
   { name: "Pedro Castro", slug: "pedro-castro" },
 ];
 
+const CATEGORIES = [
+  { name: "Corte", slug: "corte" },
+  { name: "Barba", slug: "barba" },
+  { name: "Não Categorizado", slug: "nao-categorizado" },
+];
+
 const SERVICES: {
   name: string;
   slug: string;
@@ -38,13 +44,25 @@ async function main() {
     );
   }
 
+  const categoriesBySlug = new Map<string, { id: string }>();
+  for (const [i, c] of CATEGORIES.entries()) {
+    const category = await prisma.category.upsert({
+      where: { slug: c.slug },
+      update: {},
+      create: { ...c, order: i },
+    });
+    categoriesBySlug.set(c.name, category);
+  }
+
   const services = [];
   for (const [i, s] of SERVICES.entries()) {
+    const { category, ...serviceData } = s;
+    const categoryId = categoriesBySlug.get(category)!.id;
     services.push(
       await prisma.service.upsert({
         where: { slug: s.slug },
-        update: {},
-        create: { ...s, priceCents: 0, order: i },
+        update: { categoryId },
+        create: { ...serviceData, categoryId, priceCents: 0, order: i },
       })
     );
   }

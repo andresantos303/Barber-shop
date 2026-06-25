@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getDashboardStats } from "@/lib/dashboard-stats";
+import { DashboardCharts } from "@/components/admin/dashboard-charts";
 
 export default async function AdminDashboardPage() {
   const startOfToday = new Date();
@@ -7,7 +9,7 @@ export default async function AdminDashboardPage() {
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
-  const [todayCount, upcomingCount, barberCount, serviceCount, productCount] = await Promise.all([
+  const [todayCount, upcomingCount, barberCount, serviceCount, productCount, stats] = await Promise.all([
     prisma.booking.count({
       where: { status: "CONFIRMED", startAt: { gte: startOfToday, lt: startOfTomorrow } },
     }),
@@ -15,6 +17,7 @@ export default async function AdminDashboardPage() {
     prisma.barber.count({ where: { active: true } }),
     prisma.service.count({ where: { active: true } }),
     prisma.product.count({ where: { active: true } }),
+    getDashboardStats(),
   ]);
 
   const cards = [
@@ -40,6 +43,8 @@ export default async function AdminDashboardPage() {
           </Link>
         ))}
       </div>
+
+      <DashboardCharts stats={stats} />
     </div>
   );
 }

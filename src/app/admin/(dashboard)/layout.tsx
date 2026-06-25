@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Scissors, LayoutDashboard, CalendarDays, Users, Sparkles, ShoppingBag, LogOut, FileCode } from "lucide-react";
+import { Scissors, LayoutDashboard, CalendarDays, Users, Sparkles, Tag, ShoppingBag, LogOut, FileCode } from "lucide-react";
 import { logout } from "@/actions/auth";
 import { requireAdmin } from "@/lib/session";
 
@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/bookings", label: "Marcações", icon: CalendarDays },
   { href: "/admin/barbers", label: "Barbeiros", icon: Users },
   { href: "/admin/services", label: "Serviços", icon: Sparkles },
+  { href: "/admin/categories", label: "Categorias", icon: Tag },
   { href: "/admin/products", label: "Produtos", icon: ShoppingBag },
   { href: "/admin/api-docs", label: "API Docs", icon: FileCode },
 ];

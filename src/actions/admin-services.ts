@@ -13,7 +13,7 @@ const serviceSchema = z.object({
     .trim()
     .min(1)
     .regex(/^[a-z0-9-]+$/, "Apenas letras minúsculas, números e hífens"),
-  category: z.string().trim().min(1),
+  categoryId: z.string().trim().min(1),
   description: z.string().trim().optional(),
   durationMin: z.coerce.number().int().min(5).max(480),
   priceCents: z.coerce.number().int().min(0),
@@ -24,7 +24,7 @@ function parseServiceForm(formData: FormData) {
   return serviceSchema.parse({
     name: formData.get("name"),
     slug: formData.get("slug"),
-    category: formData.get("category"),
+    categoryId: formData.get("categoryId"),
     description: formData.get("description") || undefined,
     durationMin: formData.get("durationMin"),
     priceCents: Math.round(Number(formData.get("priceEuros") ?? 0) * 100),

@@ -6,7 +6,10 @@ import { deleteService } from "@/actions/admin-services";
 import { Button } from "@/components/ui/button";
 
 export default async function AdminServicesPage() {
-  const services = await prisma.service.findMany({ orderBy: { order: "asc" } });
+  const services = await prisma.service.findMany({
+    orderBy: { order: "asc" },
+    include: { category: true },
+  });
 
   return (
     <div>
@@ -35,7 +38,7 @@ export default async function AdminServicesPage() {
             {services.map((service) => (
               <tr key={service.id}>
                 <td className="px-4 py-3 text-foreground">{service.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">{service.category}</td>
+                <td className="px-4 py-3 text-muted-foreground">{service.category.name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{service.durationMin} min</td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {service.priceCents > 0 ? formatPriceCents(service.priceCents) : "—"}

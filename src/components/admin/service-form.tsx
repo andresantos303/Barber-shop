@@ -1,11 +1,14 @@
-import type { Service } from "@/generated/prisma/client";
+import type { Category, Service } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function ServiceForm({
   service,
+  categories,
   action,
 }: {
   service?: Service;
+  categories: Category[];
   action: (formData: FormData) => void;
 }) {
   return (
@@ -31,18 +34,18 @@ export function ServiceForm({
       </div>
       <div>
         <label className="text-sm font-medium text-foreground">Categoria</label>
-        <input
-          name="category"
-          defaultValue={service?.category}
-          required
-          list="categories"
-          className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring"
-        />
-        <datalist id="categories">
-          <option value="Corte" />
-          <option value="Barba" />
-          <option value="Não Categorizado" />
-        </datalist>
+        <Select name="categoryId" defaultValue={service?.categoryId} required>
+          <SelectTrigger className="mt-1.5 h-10 w-full justify-between rounded-md border-input bg-background px-3 text-sm text-foreground">
+            <SelectValue placeholder="Selecione uma categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <label className="text-sm font-medium text-foreground">Descrição (opcional)</label>

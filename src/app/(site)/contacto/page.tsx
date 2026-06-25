@@ -49,7 +49,8 @@ export default function ContactoPage() {
             <Clock className="mt-0.5 size-5 shrink-0 text-primary" />
             <div>
               <p className="font-medium text-foreground">Horário</p>
-              <p className="text-sm text-muted-foreground">Segunda a Sábado, consulte disponibilidade ao agendar</p>
+              <p className="text-sm text-muted-foreground">Segunda a Sexta - 9:30h - 12:30h | 14:00h - 19:30h</p>
+              <p className="text-sm text-muted-foreground">Sábado - 8:00h - 12:30h | 14:00h - 18:00h</p>
             </div>
           </div>
 

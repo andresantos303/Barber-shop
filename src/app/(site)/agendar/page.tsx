@@ -12,7 +12,11 @@ export const dynamic = "force-dynamic";
 
 async function getBookingData() {
   const [services, barbers] = await Promise.all([
-    prisma.service.findMany({ where: { active: true }, orderBy: { order: "asc" } }),
+    prisma.service.findMany({
+      where: { active: true },
+      orderBy: { order: "asc" },
+      include: { category: true },
+    }),
     prisma.barber.findMany({
       where: { active: true },
       orderBy: { order: "asc" },
@@ -24,7 +28,7 @@ async function getBookingData() {
     services: services.map((s) => ({
       id: s.id,
       name: s.name,
-      category: s.category,
+      category: s.category.name,
       durationMin: s.durationMin,
       priceCents: s.priceCents,
     })),
