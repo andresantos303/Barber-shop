@@ -1,6 +1,6 @@
-# André Cabeleireiro
+# Barber Shop
 
-Redesign of the [André Cabeleireiro](https://andrecabeleireiro.com) barbershop website (Seixezelo, Portugal) — a full-stack, mobile-first Next.js app with a dark/premium design, an online booking system, and an admin panel for managing barbers, services, products, and bookings.
+A baberShop website — a full-stack, mobile-first Next.js app with a dark/premium design, an online booking system, and an admin panel for managing barbers, services, products, and bookings.
 
 ## Features
 
